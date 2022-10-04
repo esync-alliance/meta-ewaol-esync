@@ -1,0 +1,24 @@
+From 6e280edf3a9270419b7b42d10b21419bfbfd0f13 Mon Sep 17 00:00:00 2001
+From: Allan Co <allanrodrigo.co@excelfore.com>
+Date: Tue, 4 Oct 2022 21:26:11 +0900
+Subject: [PATCH] SWIG 4.0.2 migration support
+
+---
+ pylibua/libuac.i | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pylibua/libuac.i b/pylibua/libuac.i
+index 32ac738..72e3d62 100644
+--- a/pylibua/libuac.i
++++ b/pylibua/libuac.i
+@@ -1,6 +1,6 @@
+ /*File: libuac.i*/
+ 
+-%module libuamodule
++%module(package="pylibua", moduleimport="import $module") libuamodule
+ %include "pua.h"
+ 
+ %{
+-- 
+2.25.1
+

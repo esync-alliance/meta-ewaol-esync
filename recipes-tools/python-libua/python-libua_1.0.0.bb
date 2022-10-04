@@ -19,6 +19,8 @@ GIT_REPO = "github.com/esync-alliance/esync-ua.git;protocol=https"
 SRC_URI = "git://${GIT_REPO};branch=${BRANCH}"
 SRCREV = "${AUTOREV}"
 
+SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
+
 S = "${WORKDIR}/git"
 B = "${WORKDIR}/git"
 
