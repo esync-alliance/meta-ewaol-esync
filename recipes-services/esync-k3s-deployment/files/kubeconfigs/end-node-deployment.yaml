@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./kompose convert -f in/docker-compose-soafee.yml -o out/
+    kompose.version: 1.26.1 (a9d05d509)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: end-node
+  name: end-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: end-node
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: ./kompose convert -f in/docker-compose-soafee.yml -o out/
+        kompose.version: 1.26.1 (a9d05d509)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: end-node
+    spec:
+      containers:
+        - image: gitlab.excelfore.com:4444/xl4-devops/deployment/customer/soafee-japan/end-node:latest
+          name: end-node
+          ports:
+            - containerPort: 13400
+              name: enode-doip-port
+          resources: {}
+      hostname: end-node
+      restartPolicy: Always
+status: {}

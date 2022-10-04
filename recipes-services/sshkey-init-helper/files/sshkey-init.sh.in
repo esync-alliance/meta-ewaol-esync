@@ -1,0 +1,31 @@
+#!/bin/bash
+# ******************************************************************************
+# * Copyright (C) 2022 Excelfore Corporation. All Rights Reserved.
+# ******************************************************************************
+
+#####################################################################
+# Default option
+#####################################################################
+# eSync Client Container Authorized Keys Mount Point
+: ${SSHKEYMOUNTPOINT:=@ESCLIENT_PRIV_DIR@/ssh-priv/authorized_keys}
+# ssh-keygen bin path
+: ${SSHKEYGEN:=@SSHKEYGEN_BINDIR@/ssh-keygen}
+# SSH private key location
+: ${PRIVKEY:=@ROOT_HOME@/.ssh/id_rsa}
+# SSH public key location
+: ${PUBKEY:=@ROOT_HOME@/.ssh/id_rsa.pub}
+
+function main()
+{
+    echo "Generating SSH Keys"
+    ${SSHKEYGEN} -q -t rsa -b 2048 -N '' -f ${PRIVKEY} <<<y >/dev/null 2>&1
+
+	if [ -f ${PUBKEY} ]; then
+        echo "Authorize this device to access container ssh service."
+		cat ${PUBKEY} >> ${SSHKEYMOUNTPOINT}
+	else
+		echo "No ssh keys in this device, key generation failed!"
+	fi
+}
+
+main

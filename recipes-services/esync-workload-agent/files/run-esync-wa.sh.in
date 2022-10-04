@@ -1,0 +1,73 @@
+#!/bin/sh
+
+CUR_DIR=$PWD
+updateagent_pid=""
+
+function wait_for_provisioning()
+{
+    echo "Waiting for provisioning to finish..."
+    while [ True ]
+    do
+        if [ ! -d @CLIENT_CERTS_DIR@/python-agent ]; then
+            sleep 1
+        else
+            break
+        fi
+    done
+    echo "Provisioning is done..."
+}
+
+function start_updateagent()
+{
+    python3 @WA_BIN_PATH@/workloadagent.py \
+        -k @CLIENT_CERTS_DIR@/python-agent \
+        -c @CLIENT_SOTA_DIR@/tmpl-py/cache \
+        -b @CLIENT_SOTA_DIR@/tmpl-py/backup \
+        -t /SDK/PY_AGENT \
+        -i @CLIENT_IP@ \
+        -p @CLIENT_PORT@ \
+        -u @SSH_USER@ \
+        -s @SSH_PORT@ \
+        -j @AGENTDIR@/wa-schema.json \
+        -W @AGENTDIR@ \
+        -m @TIMEOUT@ \
+        -r @RETRIES@ &
+    updateagent_pid=$!
+}
+
+perform_cleanup()
+{
+    echo "stopping all process..."
+    sleep 1
+
+    if [ ! -z "${updateagent_pid}" ]; then
+        if ps -p "${updateagent_pid}" > /dev/null; then
+            echo "Stopping Update Agent [${updateagent_pid}]..."
+            kill ${updateagent_pid}
+        fi
+    fi
+
+    exit 0
+}
+
+function wait_for_all_process()
+{
+    if [ ! -z "${updateagent_pid}" ]; then
+        echo "Waiting for updateagent to end..."
+        wait ${updateagent_pid}
+    fi
+}
+
+function main()
+{
+    trap perform_cleanup INT TERM
+
+    echo "Check for in-vehicle certificate availability..."
+    wait_for_provisioning
+    echo "Running Workload Agent..."
+    start_updateagent
+
+    wait_for_all_process
+}
+
+main

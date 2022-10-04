@@ -1,0 +1,12 @@
+[Unit]
+Description=SSH Key Init Helper
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=@ROOT_HOME@/.ssh/sshkey-init.sh
+ExecStartPost=/bin/systemctl disable sshkey-init-helper.service
+ExecStartPost=rm @ROOT_HOME@/.ssh/sshkey-init.sh
+
+[Install]
+WantedBy=multi-user.target

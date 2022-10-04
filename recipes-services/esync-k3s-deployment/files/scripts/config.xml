@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <configs> <!-- ECU Configuration START -->
+	<config>
+		<mode>DOIP</mode>
+		<name>/PDC/AURIX1/PBM-S32K</name>
+		<ServerAddress>0x46D9</ServerAddress>
+		<ClientAddress>0x0E05</ClientAddress>
+		<IPAddress>10.43.134.3</IPAddress>
+		<GET-VERSION>
+			<SEQ>22E101</SEQ>
+		</GET-VERSION>
+		<VERSION-LENGTH>13</VERSION-LENGTH>
+        <INSTALL-CONF-PATH>install.xml</INSTALL-CONF-PATH>
+        <SEQUENCE-CONF-PATH>SeqFileConfiguration</SEQUENCE-CONF-PATH>
+	</config>
+    </configs> <!-- ECU Configuration END -->

@@ -1,0 +1,13 @@
+[Unit]
+Description=eSync Workload Agent Service
+Wants=k3s.service
+After=k3s.service
+
+[Service]
+Type=simple
+ExecStart=@WA_RUNNER_PATH@/run-esync-wa.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

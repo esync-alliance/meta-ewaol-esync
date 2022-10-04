@@ -1,0 +1,15 @@
+[Unit]
+Description=eSync Provisioning MAC Address Monitor
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+TimeoutStartSec=300
+WorkingDirectory=@PROVISION_TOOLS_DIR@
+ExecStart=@PROVISION_TOOLS_DIR@/macaddr-monitor.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

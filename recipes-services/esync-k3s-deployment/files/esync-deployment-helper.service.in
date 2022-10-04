@@ -1,0 +1,12 @@
+[Unit]
+Description=Deploy eSync-Client Demo to SOAFEE Framework (k3s)
+Wants=esync-macaddr-monitor.service k3s.service
+After=esync-macaddr-monitor.service k3s.service
+
+[Service]
+Type=oneshot
+ExecStart=@ESCLIENT_PRIV_DIR@/kubeconfigs/deploy.sh
+ExecStartPost=/bin/systemctl disable esync-deployment-helper.service
+
+[Install]
+WantedBy=multi-user.target

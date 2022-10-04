@@ -1,0 +1,44 @@
+**Invehicle Certificate provisioning for xl4bus participant nodes **
+
+-----------------------------------------------------
+** Create User Certificates for new agents:
+-----------------------------------------------------
+To create new user certificates follow the steps below,
+
+   * Path of InVehicle certificate directory :  '<sdk_package_name>/xl4/InVehicle-Certs'
+
+   Adding new node certs:
+   ----------------------
+   1) 1) Create the new file with .cfg extentaion for generating certificates with different types of nodes in the config folder.
+  	E.g.,ua-three.cfg
+	#This configuration file is read while creating x509 certificates.	
+ 	
+        CERT_TYPE="_UA"
+	LABEL_NAME="ua"
+	UA_ADDR0="/NODE1"
+	UA_ADDR1="/NODE2"
+        UA_ADDR2="/NODE3"  
+   2) In the LABEL_NAME provide ua label name. 
+   3) In CERT_TYPE "_UA" should be present.	    
+   4) Save the file after adding all the UA and their associated node type.
+   5) For more information related to how to create .cfg file in config folder please refer ua_three.tmpl file which is present inside config folder. 
+   6) Run the following commands:
+      Usage options :
+      $ ./installer.sh    
+               -i  # Install's SDK on this linux hardware
+               -u  # Uninstall's on this linux hardware
+               -h  # Help / Usage Options
+      E.g., 
+	$ ./installer.sh -i
+   
+   7) The certs for new UA will be created in the pki/certs directory. New .cfg will be added to the config directory for future use.
+   8) Run the new user updateagents, using certificates:
+      $ <new user updateagent binary path> -k <new user updateagent certificate path> -d  
+      E.g., 
+	    $ '{$HOME}/xl4/bin/ua-three -k {$HOME}/xl4/InVehicle-Certs/pki/certs/ua-three -d'
+ 
+   Note : .cfg extention must be provide with your config file.
+     
+Documentation : 
+
+https://excelfore.atlassian.net/wiki/spaces/FAP/pages/256245887/ESYNC-2552+-+Certificate+provisioning+for+xl4bus+participant+nodes

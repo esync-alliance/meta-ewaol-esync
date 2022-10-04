@@ -1,0 +1,24 @@
+#!/bin/sh
+#------------------------------------------------------------------------------
+# Workaround script to expand root partition and filesystem in AWS EC2 instance
+# REF: https://github.com/aws4embeddedlinux/meta-aws-ewaol/tree/kirkstone-dev#limitations
+#------------------------------------------------------------------------------
+
+# we must be root
+[ $(whoami) = "root" ] || { echo "E: You must be root" && exit 1; }
+
+# we must have few tools
+PARTED=$(which parted) || { echo "E: You must have parted" && exit 1; }
+RESIZE2FS=$(which resize2fs) || { echo "E: You must have resize2fs" && exit 1; }
+
+# disabling swap
+swapoff -a
+sed -i '/.*swap.*/d' /etc/fstab
+# trick to fix GPT
+printf "fix\n" | ${PARTED} ---pretend-input-tty /dev/nvme0n1 print
+# remove partition 3 (swap)
+${PARTED} -s /dev/nvme0n1 rm 3
+# resize partition 2 to use 100% of available free space
+${PARTED} -s /dev/nvme0n1 resizepart 2 100%
+# resizing ext4 filesystem
+${RESIZE2FS} /dev/nvme0n1p2

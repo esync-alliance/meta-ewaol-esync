@@ -1,0 +1,45 @@
+#!/bin/sh
+# ******************************************************************************
+# * Copyright (C) 2022 Excelfore Corporation. All Rights Reserved.
+# ******************************************************************************
+
+###############################################################################
+# Default option
+###############################################################################
+# Path to eSync DM Tree
+: ${TREE_DIR:="@ESCLIENT_PRIV_DIR@/data/trees"}
+# Path to eSync Provisioning Tools
+: ${TOOLS_DIR:="@PROVISION_TOOLS_DIR@"}
+
+export LD_LIBRARY_PATH=/usr/lib
+export PATH=/bin:/usr/bin:/usr/sbin:$PATH
+macaddr=$(getdevid.sh)
+
+INIT_FLAG=1
+while true; do
+  # Download and Deploy dm_tree base on 'provision-secrets' if it does not exists yet
+  if [ ! -f ${TOOLS_DIR}/.DEV-MAC-LIST/${macaddr} ]; then
+    echo "Setting macaddr to use for provisioning: $macaddr"
+    for file in ${TOOLS_DIR}/.DEV-MAC-LIST/*
+    do
+        if [ -f $file ] && [ ! -L $file ]; then
+            echo "-> Removing old entry: $file"
+            rm $file
+        fi
+    done
+    mkdir -p ${TOOLS_DIR}/.DEV-MAC-LIST
+    touch ${TOOLS_DIR}/.DEV-MAC-LIST/${macaddr}
+    echo "-> New entry added: ${TOOLS_DIR}/.DEV-MAC-LIST/${macaddr}"
+    systemd-notify --ready --status="Host Mac Address Set"
+    INIT_FLAG=1
+  fi
+
+  if [ "${INIT_FLAG}" == 1 ] && [ -d ${TREE_DIR}/dm_tree ]; then
+    devIdVal='dm_tree/DevInfo/DevId/value'
+    devid=$(cat ${TREE_DIR}/${devIdVal} | awk '{split($0,a,":"); print a[4]}')
+    echo "DMTree [${devid}] available and linked to MAC Address"
+    systemd-notify --status="DMTree and Certificates Ready"
+    INIT_FLAG=0
+  fi
+  sleep 30
+done

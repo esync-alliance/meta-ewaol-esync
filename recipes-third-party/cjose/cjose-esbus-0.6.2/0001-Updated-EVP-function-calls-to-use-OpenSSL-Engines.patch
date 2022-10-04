@@ -1,0 +1,467 @@
+From 78296d474fcda30af62d168f6cc65c3c978c9fdf Mon Sep 17 00:00:00 2001
+From: Allan Co <allanrodrigo.co@excelfore.com>
+Date: Fri, 29 Jul 2022 18:01:39 +0900
+Subject: [PATCH] Updated EVP function calls to use OpenSSL Engines.
+
+- Updated calls to the following function to use OpenSSL Engines
+  - EVP_DigestInit_ex
+  - EVP_EncryptInit_ex
+  - EVP_DecryptInit_ex
+  - EVP_PKEY_CTX_new
+- Added new CJOSE APIs to register engine setup and release callbacks.
+---
+ include/Makefile.am      |  3 ++-
+ include/cjose/engine.h   | 31 +++++++++++++++++++++++++++++++
+ src/Makefile.am          | 14 ++++++++------
+ src/concatkdf.c          |  9 +++++++--
+ src/engine.c             | 35 +++++++++++++++++++++++++++++++++++
+ src/include/engine_int.h | 15 +++++++++++++++
+ src/jwe.c                | 34 +++++++++++++++++++++++++++++-----
+ src/jwk.c                | 10 ++++++++--
+ src/jws.c                |  8 +++++++-
+ 9 files changed, 142 insertions(+), 17 deletions(-)
+ create mode 100644 include/cjose/engine.h
+ create mode 100644 src/engine.c
+ create mode 100644 src/include/engine_int.h
+
+diff --git a/include/Makefile.am b/include/Makefile.am
+index 77bb691..4750205 100644
+--- a/include/Makefile.am
++++ b/include/Makefile.am
+@@ -6,4 +6,5 @@ nobase_include_HEADERS = 	cjose/cjose.h \
+ 							cjose/header.h \
+ 							cjose/error.h \
+ 							cjose/util.h \
+-							cjose/version.h
++							cjose/version.h \
++							cjose/engine.h
+diff --git a/include/cjose/engine.h b/include/cjose/engine.h
+new file mode 100644
+index 0000000..c6f369e
+--- /dev/null
++++ b/include/cjose/engine.h
+@@ -0,0 +1,31 @@
++/*!
++ * engine.h
++ * Openssl Engine Setup/Release
++ *
++ * Copyright (C) 2020 Excelfore Corporation
++ */
++#ifndef CJOSE_ENGINE_H
++#define CJOSE_ENGINE_H
++
++#include <openssl/engine.h>
++
++/**
++ * Typedef for the Engine Setup function.
++ */
++typedef ENGINE *(*cjose_engine_setup_fn_t)(void);
++
++/**
++ * Typedef for the Engine Release function.
++ */
++typedef void (*cjose_engine_release_fn_t)(ENGINE *engine);
++
++/**
++ * Sets the openssl Engine Setup Functions
++ *
++ * \param setup [in] The function that setups and returns the Engine to use for crypto operations
++ * \param release [in] The function that releases the resources used during Engine Setup
++ */
++void cjose_set_cryto_engine_funcs(cjose_engine_setup_fn_t setup,
++                                  cjose_engine_release_fn_t release);
++
++#endif // CJOSE_ENGINE_H
+diff --git a/src/Makefile.am b/src/Makefile.am
+index a855d3b..aba1c22 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -7,14 +7,16 @@ libcjose_la_SOURCES=version.c \
+ 					util.c \
+ 					base64.c \
+ 					concatkdf.c \
+-                    jwk.c \
+-                    jwe.c \
+-                    jws.c \
+-                    header.c \
+-                    error.c \
++					jwk.c \
++					jwe.c \
++					jws.c \
++					header.c \
++					error.c \
++					engine.c \
+ 					include/concatkdf_int.h \
+ 					include/header_int.h \
+ 					include/jwk_int.h \
+ 					include/jwe_int.h \
+ 					include/jws_int.h \
+-					include/util_int.h
++					include/util_int.h \
++					include/engine_int.h
+diff --git a/src/concatkdf.c b/src/concatkdf.c
+index bc2afff..ec4fd38 100644
+--- a/src/concatkdf.c
++++ b/src/concatkdf.c
+@@ -5,6 +5,7 @@
+  * Copyright (c) 2018 Cisco Systems, Inc.  All Rights Reserved.
+  */
+ 
++#include "include/engine_int.h"
+ #include "include/concatkdf_int.h"
+ 
+ #ifdef _WIN32
+@@ -109,8 +110,8 @@ uint8_t *cjose_concatkdf_derive(const size_t keylen,
+                                 const size_t otherinfoLen,
+                                 cjose_err *err)
+ {
++    ENGINE *impl = NULL;
+     uint8_t *derived = NULL;
+-
+     uint8_t *buffer = NULL;
+     const EVP_MD *dgst = EVP_sha256();
+     EVP_MD_CTX *ctx = EVP_MD_CTX_create();
+@@ -120,6 +121,9 @@ uint8_t *cjose_concatkdf_derive(const size_t keylen,
+         goto concatkdf_derive_finish;
+     }
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     const size_t hashlen = EVP_MD_size(dgst);
+     const size_t N = (keylen + hashlen - 1) / hashlen;
+     buffer = cjose_get_alloc()(keylen);
+@@ -136,7 +140,7 @@ uint8_t *cjose_concatkdf_derive(const size_t keylen,
+         _apply_uint32(idx, counter);
+ 
+         uint8_t *hash = STACK_ALLOC(hashlen * sizeof(uint8_t));
+-        if (1 != EVP_DigestInit_ex(ctx, dgst, NULL) || 1 != EVP_DigestUpdate(ctx, counter, sizeof(counter))
++        if (1 != EVP_DigestInit_ex(ctx, dgst, impl) || 1 != EVP_DigestUpdate(ctx, counter, sizeof(counter))
+             || 1 != EVP_DigestUpdate(ctx, ikm, ikmLen) || 1 != EVP_DigestUpdate(ctx, otherinfo, otherinfoLen)
+             || 1 != EVP_DigestFinal_ex(ctx, hash, NULL))
+         {
+@@ -156,6 +160,7 @@ uint8_t *cjose_concatkdf_derive(const size_t keylen,
+ concatkdf_derive_finish:
+     EVP_MD_CTX_destroy(ctx);
+     cjose_get_dealloc()(buffer);
++    cjose_engine_release(impl);
+ 
+     return derived;
+ }
+diff --git a/src/engine.c b/src/engine.c
+new file mode 100644
+index 0000000..d471a00
+--- /dev/null
++++ b/src/engine.c
+@@ -0,0 +1,35 @@
++/**
++ * engine.c
++ * Openssl Engine Setup/Release
++ *
++ * Copyright (C) 2020 Excelfore Corporation
++ */
++#include "include/engine_int.h"
++
++////////////////////////////////////////////////////////////////////////////////
++static cjose_engine_setup_fn_t _engine_setup = NULL;
++static cjose_engine_release_fn_t _engine_release = NULL;
++
++////////////////////////////////////////////////////////////////////////////////
++ENGINE *cjose_engine_setup(void)
++{
++    ENGINE *engine = NULL;
++    if (_engine_setup)
++        engine = _engine_setup();
++    return engine;
++}
++
++void cjose_engine_release(ENGINE *engine)
++{
++    if (engine && _engine_release)
++        _engine_release(engine);
++    return;
++}
++
++void cjose_set_cryto_engine_funcs(cjose_engine_setup_fn_t setup,
++                                  cjose_engine_release_fn_t release)
++{
++    _engine_setup = setup;
++    _engine_release = release;
++}
++
+diff --git a/src/include/engine_int.h b/src/include/engine_int.h
+new file mode 100644
+index 0000000..19b610d
+--- /dev/null
++++ b/src/include/engine_int.h
+@@ -0,0 +1,15 @@
++/*!
++ * engine_int.h
++ * Openssl Engine Setup/Release
++ *
++ * Copyright (C) 2020 Excelfore Corporation
++ */
++#ifndef SRC_ENGINE_INT_H
++#define SRC_ENGINE_INT_H
++
++#include <cjose/engine.h>
++
++ENGINE *cjose_engine_setup(void);
++void cjose_engine_release(ENGINE *e);
++
++#endif // SRC_ENGINE_INT_H
+diff --git a/src/jwe.c b/src/jwe.c
+index da7b742..2e982d1 100644
+--- a/src/jwe.c
++++ b/src/jwe.c
+@@ -21,6 +21,7 @@
+ #include <openssl/aes.h>
+ #include <openssl/hmac.h>
+ 
++#include "include/engine_int.h"
+ #include "include/concatkdf_int.h"
+ #include "include/header_int.h"
+ #include "include/jwk_int.h"
+@@ -936,6 +937,7 @@ static bool _cjose_jwe_set_iv_aes_cbc(cjose_jwe_t *jwe, cjose_err *err)
+ static bool _cjose_jwe_encrypt_dat_aes_gcm(cjose_jwe_t *jwe, const uint8_t *plaintext, size_t plaintext_len, cjose_err *err)
+ {
+     EVP_CIPHER_CTX *ctx = NULL;
++    ENGINE *impl = NULL;
+ 
+     // make sure we have an enc header
+     json_t *enc_obj = json_object_get(jwe->hdr, CJOSE_HDR_ENC);
+@@ -977,8 +979,11 @@ static bool _cjose_jwe_encrypt_dat_aes_gcm(cjose_jwe_t *jwe, const uint8_t *plai
+     }
+     EVP_CIPHER_CTX_init(ctx);
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     // initialize context for encryption using AES GCM cipher and CEK and IV
+-    if (EVP_EncryptInit_ex(ctx, cipher, NULL, jwe->cek, jwe->enc_iv.raw) != 1)
++    if (EVP_EncryptInit_ex(ctx, cipher, impl, jwe->cek, jwe->enc_iv.raw) != 1)
+     {
+         CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+         goto _cjose_jwe_encrypt_dat_fail;
+@@ -1047,6 +1052,7 @@ _cjose_jwe_encrypt_dat_fail:
+     {
+         EVP_CIPHER_CTX_free(ctx);
+     }
++    cjose_engine_release(impl);
+     return false;
+ }
+ 
+@@ -1148,6 +1154,7 @@ static bool _cjose_jwe_encrypt_dat_aes_cbc(cjose_jwe_t *jwe, const uint8_t *plai
+ 
+     // get the AES cipher
+     EVP_CIPHER_CTX *ctx = NULL;
++    ENGINE *impl = NULL;
+     const EVP_CIPHER *cipher = NULL;
+ 
+     if (strcmp(enc, CJOSE_HDR_ENC_A128CBC_HS256) == 0)
+@@ -1172,8 +1179,11 @@ static bool _cjose_jwe_encrypt_dat_aes_cbc(cjose_jwe_t *jwe, const uint8_t *plai
+     }
+     EVP_CIPHER_CTX_init(ctx);
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     // initialize context for decryption using the cipher, the 2nd half of the CEK and the IV
+-    if (EVP_EncryptInit_ex(ctx, cipher, NULL, jwe->cek + jwe->cek_len / 2, jwe->enc_iv.raw) != 1)
++    if (EVP_EncryptInit_ex(ctx, cipher, impl, jwe->cek + jwe->cek_len / 2, jwe->enc_iv.raw) != 1)
+     {
+         CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+         goto _cjose_jwe_encrypt_dat_aes_cbc_fail;
+@@ -1216,7 +1226,7 @@ static bool _cjose_jwe_encrypt_dat_aes_cbc(cjose_jwe_t *jwe, const uint8_t *plai
+     uint8_t tag[EVP_MAX_MD_SIZE];
+     if (_cjose_jwe_calc_auth_tag(enc, jwe, (unsigned char *)&tag, &tag_len, err) == false)
+     {
+-        return false;
++        goto _cjose_jwe_encrypt_dat_aes_cbc_fail;
+     }
+ 
+     // allocate buffer for the authentication tag
+@@ -1230,6 +1240,7 @@ static bool _cjose_jwe_encrypt_dat_aes_cbc(cjose_jwe_t *jwe, const uint8_t *plai
+     memcpy(jwe->enc_auth_tag.raw, tag, tag_len);
+ 
+     EVP_CIPHER_CTX_free(ctx);
++    cjose_engine_release(impl);
+ 
+     return true;
+ 
+@@ -1238,6 +1249,7 @@ _cjose_jwe_encrypt_dat_aes_cbc_fail:
+     {
+         EVP_CIPHER_CTX_free(ctx);
+     }
++    cjose_engine_release(impl);
+     return false;
+ }
+ 
+@@ -1245,6 +1257,7 @@ _cjose_jwe_encrypt_dat_aes_cbc_fail:
+ static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+ {
+     EVP_CIPHER_CTX *ctx = NULL;
++    ENGINE *impl = NULL;
+ 
+     // make sure we have an enc header
+     json_t *enc_obj = json_object_get(jwe->hdr, CJOSE_HDR_ENC);
+@@ -1280,8 +1293,11 @@ static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+     }
+     EVP_CIPHER_CTX_init(ctx);
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     // initialize context for decryption using AES GCM cipher and CEK and IV
+-    if (EVP_DecryptInit_ex(ctx, cipher, NULL, jwe->cek, jwe->enc_iv.raw) != 1)
++    if (EVP_DecryptInit_ex(ctx, cipher, impl, jwe->cek, jwe->enc_iv.raw) != 1)
+     {
+         CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+         goto _cjose_jwe_decrypt_dat_aes_gcm_fail;
+@@ -1327,6 +1343,7 @@ static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+     }
+ 
+     EVP_CIPHER_CTX_free(ctx);
++    cjose_engine_release(impl);
+     return true;
+ 
+ _cjose_jwe_decrypt_dat_aes_gcm_fail:
+@@ -1334,6 +1351,7 @@ _cjose_jwe_decrypt_dat_aes_gcm_fail:
+     {
+         EVP_CIPHER_CTX_free(ctx);
+     }
++    cjose_engine_release(impl);
+     return false;
+ }
+ 
+@@ -1366,6 +1384,7 @@ static bool _cjose_jwe_decrypt_dat_aes_cbc(cjose_jwe_t *jwe, cjose_err *err)
+ 
+     // get the AES cipher
+     EVP_CIPHER_CTX *ctx = NULL;
++    ENGINE *impl = NULL;
+     const EVP_CIPHER *cipher = NULL;
+ 
+     if (strcmp(enc, CJOSE_HDR_ENC_A128CBC_HS256) == 0)
+@@ -1396,8 +1415,11 @@ static bool _cjose_jwe_decrypt_dat_aes_cbc(cjose_jwe_t *jwe, cjose_err *err)
+     }
+     EVP_CIPHER_CTX_init(ctx);
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     // initialize context for decryption using the cipher, the 2nd half of the CEK and the IV
+-    if (EVP_DecryptInit_ex(ctx, cipher, NULL, jwe->cek + jwe->cek_len / 2, jwe->enc_iv.raw) != 1)
++    if (EVP_DecryptInit_ex(ctx, cipher, impl, jwe->cek + jwe->cek_len / 2, jwe->enc_iv.raw) != 1)
+     {
+         CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+         goto _cjose_jwe_decrypt_dat_aes_cbc_fail;
+@@ -1428,6 +1450,7 @@ static bool _cjose_jwe_decrypt_dat_aes_cbc(cjose_jwe_t *jwe, cjose_err *err)
+     jwe->dat_len = p_len + f_len;
+ 
+     EVP_CIPHER_CTX_free(ctx);
++    cjose_engine_release(impl);
+ 
+     return true;
+ 
+@@ -1436,6 +1459,7 @@ _cjose_jwe_decrypt_dat_aes_cbc_fail:
+     {
+         EVP_CIPHER_CTX_free(ctx);
+     }
++    cjose_engine_release(impl);
+     return false;
+ }
+ 
+diff --git a/src/jwk.c b/src/jwk.c
+index b483aa4..71a4ea5 100644
+--- a/src/jwk.c
++++ b/src/jwk.c
+@@ -7,6 +7,7 @@
+ 
+ #define OPENSSL_API_COMPAT 0x10000000L
+ 
++#include "include/engine_int.h"
+ #include "include/jwk_int.h"
+ #include "include/util_int.h"
+ 
+@@ -1756,6 +1757,7 @@ bool cjose_jwk_derive_ecdh_bits(
+     EVP_PKEY_CTX *ctx = NULL;
+     EVP_PKEY *pkey_self = NULL;
+     EVP_PKEY *pkey_peer = NULL;
++    ENGINE *impl = NULL;
+     uint8_t *secret = NULL;
+     size_t secret_len = 0;
+ 
+@@ -1771,8 +1773,11 @@ bool cjose_jwk_derive_ecdh_bits(
+         goto _cjose_jwk_derive_bits_fail;
+     }
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     // create derivation context based on local key pair
+-    ctx = EVP_PKEY_CTX_new(pkey_self, NULL);
++    ctx = EVP_PKEY_CTX_new(pkey_self, impl);
+     if (NULL == ctx)
+     {
+         CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+@@ -1820,6 +1825,7 @@ bool cjose_jwk_derive_ecdh_bits(
+     EVP_PKEY_CTX_free(ctx);
+     EVP_PKEY_free(pkey_self);
+     EVP_PKEY_free(pkey_peer);
++    cjose_engine_release(impl);
+ 
+     *output = secret;
+     *output_len = secret_len;
+@@ -1840,7 +1846,7 @@ _cjose_jwk_derive_bits_fail:
+         EVP_PKEY_free(pkey_peer);
+     }
+     cjose_get_dealloc()(secret);
+-
++    cjose_engine_release(impl);
+     return false;
+ }
+ 
+diff --git a/src/jws.c b/src/jws.c
+index d73debb..600ac1d 100644
+--- a/src/jws.c
++++ b/src/jws.c
+@@ -20,6 +20,7 @@
+ #include <openssl/err.h>
+ #include <openssl/hmac.h>
+ 
++#include "include/engine_int.h"
+ #include "include/jwk_int.h"
+ #include "include/header_int.h"
+ #include "include/jws_int.h"
+@@ -145,6 +146,7 @@ static bool _cjose_jws_build_dig_sha(cjose_jws_t *jws, const cjose_jwk_t *jwk, c
+ {
+     bool retval = false;
+     EVP_MD_CTX *ctx = NULL;
++    ENGINE *impl = NULL;
+ 
+     // make sure we have an alg header
+     json_t *alg_obj = json_object_get(jws->hdr, CJOSE_HDR_ALG);
+@@ -197,8 +199,11 @@ static bool _cjose_jws_build_dig_sha(cjose_jws_t *jws, const cjose_jwk_t *jwk, c
+     }
+     EVP_MD_CTX_init(ctx);
+ 
++    // get openssl Engine to use for crypto operations
++    impl = cjose_engine_setup();
++
+     // create digest as DIGEST(B64U(HEADER).B64U(DATA))
+-    if (EVP_DigestInit_ex(ctx, digest_alg, NULL) != 1)
++    if (EVP_DigestInit_ex(ctx, digest_alg, impl) != 1)
+     {
+         CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+         goto _cjose_jws_build_dig_sha_cleanup;
+@@ -232,6 +237,7 @@ _cjose_jws_build_dig_sha_cleanup:
+     {
+         EVP_MD_CTX_destroy(ctx);
+     }
++    cjose_engine_release(impl);
+ 
+     return retval;
+ }
+-- 
+2.25.1
+

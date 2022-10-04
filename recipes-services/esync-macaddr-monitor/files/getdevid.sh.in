@@ -1,0 +1,6 @@
+#!/bin/bash -e
+export PATH=$PATH:/sbin:/bin:/usr/sbin:/usr/bin
+IFACE=$(ip -4 route show default | awk 'match($0,/dev [^ ]*/){ print substr($0, RSTART+4,RLENGTH-4)}')
+read MAC </sys/class/net/$IFACE/address #reading mac address
+vin=${MAC//:} #removing colon
+echo $vin

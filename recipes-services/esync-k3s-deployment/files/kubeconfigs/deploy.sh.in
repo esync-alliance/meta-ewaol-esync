@@ -1,0 +1,55 @@
+#!/bin/sh
+# ******************************************************************************
+# * Copyright (C) 2022 Excelfore Corporation. All Rights Reserved.
+# ******************************************************************************
+
+###############################################################################
+# Default option
+###############################################################################
+# Path to eSync Client K3S Deployment Files
+: ${DEMO_CONFIG_PATH:=@ESCLIENT_PRIV_DIR@/kubeconfigs}
+# Path to Docker config file
+: ${DOCKER_CONFIG_PATH:=@ROOT_HOME@/.docker/config.json}
+# eSync-Client Kubernetes YAML files to deploy
+K8S_YAML_FILE_LIST="\
+esync-client-persistent-volume-claim.yaml,\
+esync-client-persistent-volume.yaml,\
+esync-client-deployment.yaml,\
+end-node-deployment.yaml,\
+esync-client-service.yaml,\
+end-node-service.yaml\
+"
+
+###############################################################################
+# eSync Client Deployment
+###############################################################################
+
+export LD_LIBRARY_PATH=/usr/lib
+export PATH=/bin:/usr/bin:/usr/sbin:/usr/local/bin:$PATH
+
+echo "eSync SOAFEE Framework Demo - Waiting for K3S Service"
+RET=1
+until [ ${RET} -eq 0 ]; do
+  kubectl get node
+  RET=$?
+  sleep 10
+done
+
+echo "eSync SOAFEE Framework Demo - Deploying..."
+
+if [ -f "${DOCKER_CONFIG_PATH}" ]; then
+    # Create Secret base on your docker config.json
+    kubectl create secret generic regcred \
+        --from-file=.dockerconfigjson=${DOCKER_CONFIG_PATH} \
+        --type=kubernetes.io/dockerconfigjson
+
+    kubectl patch serviceaccount default -p \
+        "{\"imagePullSecrets\": [{\"name\": \"regcred\"}]}"
+fi
+
+if [ ! -z "${K8S_YAML_FILE_LIST}" ]; then
+    cd ${DEMO_CONFIG_PATH}
+    kubectl apply -f ${K8S_YAML_FILE_LIST}
+fi
+
+echo "eSync SOAFEE Framework Demo - Deployed"

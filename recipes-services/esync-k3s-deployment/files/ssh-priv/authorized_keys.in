@@ -1,0 +1,1 @@
+# Copy ssh public key (typically found in ~/.ssh/id_rsa.pub) of devices that will access the esync-client container via ssh
