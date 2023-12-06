@@ -9,8 +9,8 @@ DEPENDS = "libxml2 libzip esync-bus json-c-esua"
 RDEPENDS:${PN} = "libxml2 libzip esync-bus"
 
 BRANCH = "main"
-GIT_REPO = "github.com/esync-alliance/esync-ua.git;protocol=https"
-SRC_URI = "git://${GIT_REPO};branch=${BRANCH}"
+GIT_REPO = "git@github.com/esync-alliance/esync-ua.git"
+SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
 SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"
