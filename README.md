@@ -7,6 +7,16 @@
 
   ![SOAFEE Framework Demo Overview](docs/soafee-demo-setup-overview.png)
 
+## Hardware Requirements
+
+- PC with Ubuntu 20.04 or 22.04 
+- microSD card reader
+- Raspberry Pi 4 (connected to an Ethernet switch for Internet connection)
+- microSD card (8GB minimum, 16GB UHS Class 3 (U3) recommended)
+- 5V Type-C power supply for RPi-4
+- Monitor with an HDMI interface with a micro HDMI cable
+- USB keyboard
+
 ## Build Environment Setup
 
   1. Install Yocto Build Dependencies
@@ -59,7 +69,7 @@
           refspec: kirkstone
           path: layers/meta-raspberrypi
         meta-ewaol-esync:
-          url: https://github.com/esync-alliance/meta-ewaol-esync.git
+          url: git@github.com:esync-alliance/meta-ewaol-esync.git
           refspec: main
           path: layers/meta-ewaol-esync
 
@@ -76,15 +86,15 @@
           # k3s needs br_netfilter for DNS to work from containers
           IMAGE_INSTALL:append = " kernel-module-br-netfilter"
         meta-ewaol-esync: |
-          # Set eSync Auto Provision Settings
+          # Set eSync Auto Provision Settings (Note: The provisioning details can be found a few lines down.)
           PROVISION_API_KEY = "<eSync Server API Key>"
           PROVISION_SECRET = "<eSync Server Secret Key>"
           PROVISION_DOMAIN = "<eSync Server Provision Domain>"
           PROVISION_TOOLS_DIR = "/mnt/esync/data/tools"
           ESYNC_CLIENT_PRIV_HOST_DIR = "/mnt/esync"
 
-          # Set eSync workload agent settings
-          RPI_IP_ADDR="<IP address>"
+          # Set eSync workload agent settings (Optional)
+          #RPI_IP_ADDR="<IP address>"
 
           # Install eSync components needed for the demo
           IMAGE_INSTALL:append = " esync-k3s-deployment esync-workload-agent resize-helper sshkey-init-helper"
@@ -122,29 +132,36 @@
             - IPv4 address of the RPI4 device
             - If not provided defaults to localhost (i.e. 127.0.0.1)
   3. Checkout yocto repo using kas.
-
+     
+      Note: Before checking out, ensure your SSH public key is added to the GitHub repository to pull esync-alliance projects. 
       ```bash
       $ ./build.sh rpi4-eSync baremetal checkout
       ```
   4. For security purposes, the contents of the following file is not committed, user should update them manually as discussed below.
       * [recipes-services/esync-k3s-deployment/files/docker-priv/config.json](recipes-services/esync-k3s-deployment/files/docker-priv/config.json)
-
+        
+        Create a Personal Access Token from here https://github.com/settings/tokens/new. Copy and paste it below     
         ```bash
-        $ docker login gitlab.excelfore.com:4444 #Login to our private repo
-        $ docker login #Login to official DockerHub
-        $ cat ~/.docker/config.json
-        {
-                "auths": {
-                        "gitlab.excelfore.com:4444": {
-                                "auth": "<base64 hash>"
-                        },
-                        "https://index.docker.io/v1/": {
-                                "auth": "<base 64 hash>"
-                        }
-                }
-        }
-        $ cd layers/meta-ewaol-esync
-        $ cp ~/.docker/config.json recipes-services/esync-k3s-deployment/files/docker-priv/config.json
+          $ export CR_PAT=<ACCESS TOKEN>
+          $ echo $CR_PAT | docker login ghcr.io -u <USERNAME> --password-stdin
+          $ docker login #Login to official DockerHub
+          $ cat ~/.docker/config.json
+          {
+                  "auths": {
+                          "ghcr.io": {
+                                  "auth": "<base64 hash>"
+                          },
+                          "https://index.docker.io/v1/": {
+                                  "auth": "<base 64 hash>"
+                          }
+                  }
+          }
+          $ cd layers/meta-ewaol-esync
+          $ cp ~/.docker/config.json recipes-services/esync-k3s-deployment/files/docker-priv/config.json
+        ```
+        Note: You can check if you have access to the docker registry by running below command on your local machine.
+        ```bash
+           docker pull ghcr.io/esync-alliance/esync-client:latest
         ```
       * [recipes-services/esync-k3s-deployment/files/ssh-priv/authorized_keys](recipes-services/esync-k3s-deployment/files/ssh-priv/authorized_keys)
 
@@ -160,7 +177,7 @@
   6. After build finishes, flash the image to sdcard as follows:
 
       ```bash
-      $ sudo bmaptool copy build/rpi4-eSync/tmp_baremetal/deploy/images/raspberrypi4-64/ewaol-baremetal-image-raspberrypi4-64.wic.bz2 /dev/sdc
+      $ sudo bmaptool copy build/rpi4-eSync/tmp_baremetal/deploy/images/raspberrypi4-64/ewaol-baremetal-image-raspberrypi4-64.wic.bz2 /dev/sdX
       ```
       * Note:
         + Make sure that `/dev/sdX` is the char device for your sd-card.
