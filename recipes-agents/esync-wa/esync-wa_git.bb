@@ -13,8 +13,8 @@ RDEPENDS:${PN} = " \
 	python3-pyyaml "
 
 BRANCH = "main"
-GIT_REPO = "github.com/esync-alliance/esync-wa.git;protocol=https"
-SRC_URI = "git://${GIT_REPO};branch=${BRANCH}"
+GIT_REPO = "git@github.com/esync-alliance/esync-wa.git"
+SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
 SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"

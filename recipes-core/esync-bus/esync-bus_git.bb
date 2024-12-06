@@ -9,8 +9,8 @@ DEPENDS = "openssl jansson cjose-esbus json-c-esbus c-ares-esbus mbedtls-esbus p
 RDEPENDS:${PN} = "openssl jansson"
 
 BRANCH = "main"
-GIT_REPO = "github.com/esync-alliance/esync-bus.git;protocol=https"
-SRC_URI = "git://${GIT_REPO};branch=${BRANCH}"
+GIT_REPO = "git@github.com/esync-alliance/esync-bus.git"
+SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
 SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"

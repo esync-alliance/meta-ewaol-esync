@@ -24,7 +24,7 @@ spec:
         io.kompose.service: end-node
     spec:
       containers:
-        - image: gitlab.excelfore.com:4444/xl4-devops/deployment/customer/soafee-japan/end-node:latest
+        - image: ghcr.io/esync-alliance/end-node:latest
           name: end-node
           ports:
             - containerPort: 13400
