@@ -23,7 +23,8 @@ SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
 # Commit: fix: resolve segmentation fault in python-libua bindings
 SRCREV = "b6338b5caeff7a887d6cffa0144df83916ae3cb3"
 
-SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
+# NOTE: Removed 0001-SWIG-4.0.2-migration-support.patch as it's already included in the segfault fix branch
+# SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
 
 S = "${WORKDIR}/git"
 B = "${WORKDIR}/git"
