@@ -29,7 +29,22 @@ spec:
           ports:
             - containerPort: 13400
               name: enode-doip-port
-          resources: {}
+          resources:
+            requests:
+              ephemeral-storage: "50Mi"
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              ephemeral-storage: "200Mi"
+              memory: "256Mi"
+              cpu: "200m"
       hostname: end-node
       restartPolicy: Always
+      tolerations:
+        - key: "node.kubernetes.io/disk-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node.kubernetes.io/disk-pressure"
+          operator: "Exists"
+          effect: "NoExecute"
 status: {}

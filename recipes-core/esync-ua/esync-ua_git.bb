@@ -23,6 +23,9 @@ EXTRA_OECMAKE = "-DENABLE_YOCTO_BUILD:BOOL=ON \
                  -DBITBAKE_STAGING_DIR:PATH=${STAGING_DIR_HOST} \
                 "
 
+# Disable deprecated warnings to avoid build failures with newer libzip
+TARGET_CFLAGS += " -Wno-deprecated-declarations"
+
 PACKAGECONFIG ??= "bintest"
 PACKAGECONFIG[bintest] = "-DWITH_BINTEST:BOOL=ON"
 
@@ -32,7 +35,7 @@ do_configure:prepend(){
     # static archives before do_configure()
     mkdir -p ${STAGING_DIR_HOST}/updateagent/json-c/obj
     cd ${STAGING_DIR_HOST}/updateagent/json-c/obj
-    ${AR} -x ${STAGING_DIR_HOST}/updateagent/json-c/${base_libdir}/libjson-c.a
+    ${AR} -x ${STAGING_DIR_HOST}/updateagent/json-c/lib/libjson-c.a
 
     # enable USE_LEGACY_API in config.cmk if legacy-ua feature is enabled
     cp ${S}/linux_port/config.cmk.tmpl ${S}/linux_port/config.cmk

@@ -32,13 +32,13 @@ do_configure:prepend(){
     mkdir -p ${STAGING_DIR_HOST}/xl4bus/libcares/obj
     mkdir -p ${STAGING_DIR_HOST}/xl4bus/libmbedtls/obj
     cd ${STAGING_DIR_HOST}/xl4bus/libcjose/obj
-    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libcjose/${base_libdir}/libcjose.a
+    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libcjose/lib/libcjose.a
     cd ${STAGING_DIR_HOST}/xl4bus/libjson-c/obj
-    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libjson-c/${base_libdir}/libjson-c.a
+    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libjson-c/lib/libjson-c.a
     cd ${STAGING_DIR_HOST}/xl4bus/libcares/obj
-    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libcares/${base_libdir}/libcares.a
+    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libcares/lib/libcares.a
     cd ${STAGING_DIR_HOST}/xl4bus/libmbedtls/obj
-    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libmbedtls/${base_libdir}/libmbedx509.a
-    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libmbedtls/${base_libdir}/libmbedcrypto.a
+    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libmbedtls/lib/libmbedx509.a
+    ${AR} -x ${STAGING_DIR_HOST}/xl4bus/libmbedtls/lib/libmbedcrypto.a
     cd ${B}
 }

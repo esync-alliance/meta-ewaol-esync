@@ -34,7 +34,15 @@ spec:
               name: esync-bus-port
             - containerPort: 13400
               name: esclt-doip-port
-          resources: {}
+          resources:
+            requests:
+              ephemeral-storage: "50Mi"
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              ephemeral-storage: "200Mi"
+              memory: "512Mi"
+              cpu: "500m"
           volumeMounts:
             - mountPath: /data
               name: esync-client-priv
@@ -47,6 +55,13 @@ spec:
               subPath: ssh-priv
       hostname: esync-client
       restartPolicy: Always
+      tolerations:
+        - key: "node.kubernetes.io/disk-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node.kubernetes.io/disk-pressure"
+          operator: "Exists"
+          effect: "NoExecute"
       volumes:
         - name: esync-client-priv
           persistentVolumeClaim:

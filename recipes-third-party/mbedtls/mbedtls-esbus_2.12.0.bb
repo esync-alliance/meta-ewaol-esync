@@ -10,11 +10,11 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=302d50a6369f5f22efdb674db908167a"
 
 SECTION = "libs"
 
-SRC_URI = "https://tls.mbed.org/download/mbedtls-${PV}-apache.tgz"
-SRC_URI[md5sum] = "90b55ca8c726f6612de8a31a2a090e94"
-SRC_URI[sha256sum] = "a2bed048f41a19ec7b4dd2e96649145bbd68a6955c3b51aeb7ccbf8908c3ce97"
+SRC_URI = "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/mbedtls-${PV}.tar.gz"
+SRC_URI[md5sum] = "ecb3b11a27ee99a969c13f7a59b6845f"
+SRC_URI[sha256sum] = "05b126f25d4438f206d062b48cd2f2db2a1cd11bda58b21afe40b9b7cf6fca48"
 
-S = "${WORKDIR}/mbedtls-${PV}"
+S = "${WORKDIR}/mbedtls-mbedtls-${PV}"
 
 TARGET_CFLAGS += "-fPIC -fvisibility=hidden"
 
