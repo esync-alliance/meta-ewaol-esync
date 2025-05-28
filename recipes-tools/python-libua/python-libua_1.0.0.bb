@@ -3,6 +3,8 @@
 # ---------------------------------------------------
 SUMMARY = "eSync Update Agent Library Python Bindings"
 
+# NOTE: Using fix/python-libua-segfault branch to resolve segmentation faults
+# in workloadagent.py caused by memory management issues in C bindings
 LICENSE = "CLOSED"
 DEPENDS = "swig-native esync-bus esync-ua"
 
@@ -14,10 +16,12 @@ RDEPENDS:${PN} = " \
        python3-yamlloader \
        python3-pyyaml "
 
-BRANCH = "main"
+BRANCH = "fix/python-libua-segfault"
 GIT_REPO = "git@github.com/esync-alliance/esync-ua.git"
 SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
-SRCREV = "${AUTOREV}"
+# Use specific commit with segfault fixes instead of AUTOREV for stability
+# Commit: fix: resolve segmentation fault in python-libua bindings
+SRCREV = "b6338b5caeff7a887d6cffa0144df83916ae3cb3"
 
 SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
 
