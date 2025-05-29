@@ -19,9 +19,9 @@ RDEPENDS:${PN} = " \
 BRANCH = "fix/python-libua-segfault"
 GIT_REPO = "git@github.com/esync-alliance/esync-ua.git"
 SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
-# Use specific commit with segfault fixes instead of AUTOREV for stability
-# Commit: fix: resolve segmentation fault in python-libua bindings
-SRCREV = "b6338b5caeff7a887d6cffa0144df83916ae3cb3"
+# Use specific commit with segfault and OTA callback fixes instead of AUTOREV for stability
+# Commit: fix: resolve callback registration issue causing OTA inactivity
+SRCREV = "aceb0cbf7d77acf997817c3abe56b14d4ee58634"
 
 # NOTE: Removed 0001-SWIG-4.0.2-migration-support.patch as it's already included in the segfault fix branch
 # SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
