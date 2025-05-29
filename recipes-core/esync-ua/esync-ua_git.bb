@@ -8,10 +8,12 @@ DEPENDS = "libxml2 libzip esync-bus json-c-esua"
 
 RDEPENDS:${PN} = "libxml2 libzip esync-bus"
 
-BRANCH = "main"
+BRANCH = "fix/python-libua-segfault"
 GIT_REPO = "git@github.com/esync-alliance/esync-ua.git"
 SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
-SRCREV = "${AUTOREV}"
+# Use specific commit with segfault and OTA callback fixes instead of AUTOREV for stability
+# Commit: fix: resolve callback registration issue causing OTA inactivity
+SRCREV = "aceb0cbf7d77acf997817c3abe56b14d4ee58634"
 
 S = "${WORKDIR}/git"
 
