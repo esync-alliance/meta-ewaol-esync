@@ -26,6 +26,9 @@ SRCREV = "aceb0cbf7d77acf997817c3abe56b14d4ee58634"
 # NOTE: Removed 0001-SWIG-4.0.2-migration-support.patch as it's already included in the segfault fix branch
 # SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
 
+# Python 3.12 compatibility will be addressed in future updates
+# Current focus is on callback registration fixes which resolve the main OTA issue
+
 S = "${WORKDIR}/git"
 B = "${WORKDIR}/git"
 
