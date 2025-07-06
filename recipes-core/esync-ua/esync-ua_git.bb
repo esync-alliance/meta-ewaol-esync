@@ -1,17 +1,18 @@
 # ---------------------------------------------------
 # Copyright Copyright (C) 2022 Excelfore Corporation
 # ---------------------------------------------------
+
 SUMMARY = "eSync Update Agent Library"
 
 LICENSE = "CLOSED"
 DEPENDS = "libxml2 libzip esync-bus json-c-esua"
 
 RDEPENDS:${PN} = "libxml2 libzip esync-bus"
-
-BRANCH = "main"
+BRANCH = "wa-c-v1"
 GIT_REPO = "git@github.com/esync-alliance/esync-ua.git"
 SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
 SRCREV = "${AUTOREV}"
+#SRCREV = "d26b950ba8d2607c5a2a3f6d603ed3e1b2d3344b"
 
 S = "${WORKDIR}/git"
 
@@ -21,10 +22,16 @@ inherit cmake
 # using EXTRA_OECMAKE:
 EXTRA_OECMAKE = "-DENABLE_YOCTO_BUILD:BOOL=ON \
                  -DBITBAKE_STAGING_DIR:PATH=${STAGING_DIR_HOST} \
+                 -DLIBUA_VERSION:STRING=${PV} \
                 "
+
+# Disable deprecated warnings to avoid build failures with newer libzip
+# Disable format-truncation warnings that cause build failures with -Werror
+TARGET_CFLAGS += " -Wno-deprecated-declarations -Wno-format-truncation"
 
 PACKAGECONFIG ??= "bintest"
 PACKAGECONFIG[bintest] = "-DWITH_BINTEST:BOOL=ON"
+# Note: bintest includes both tmpl-updateagent and workloadagent binaries
 
 do_configure:prepend(){
     # esync-ua uses object files of json-c when building
@@ -32,7 +39,7 @@ do_configure:prepend(){
     # static archives before do_configure()
     mkdir -p ${STAGING_DIR_HOST}/updateagent/json-c/obj
     cd ${STAGING_DIR_HOST}/updateagent/json-c/obj
-    ${AR} -x ${STAGING_DIR_HOST}/updateagent/json-c/${base_libdir}/libjson-c.a
+    ${AR} -x ${STAGING_DIR_HOST}/updateagent/json-c/lib/libjson-c.a
 
     # enable USE_LEGACY_API in config.cmk if legacy-ua feature is enabled
     cp ${S}/linux_port/config.cmk.tmpl ${S}/linux_port/config.cmk
@@ -41,3 +48,9 @@ do_configure:prepend(){
     fi
     cd ${B}
 }
+
+#do_install:append() {
+#    # Install wa-schema.json for eSync payload validation
+#    install -d ${D}${datadir}/esync-ua/schemas
+#    install -m 0644 ${S}/wa-schema.json ${D}${datadir}/esync-ua/schemas/
+#}

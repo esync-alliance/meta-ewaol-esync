@@ -14,10 +14,11 @@ RDEPENDS:${PN} = " \
        python3-yamlloader \
        python3-pyyaml "
 
-BRANCH = "main"
+BRANCH = "wa-c-v1"
 GIT_REPO = "git@github.com/esync-alliance/esync-ua.git"
 SRC_URI = "git://${GIT_REPO};protocol=ssh;branch=${BRANCH}"
 SRCREV = "${AUTOREV}"
+#SRCREV = "d26b950ba8d2607c5a2a3f6d603ed3e1b2d3344b"
 
 SRC_URI += " file://0001-SWIG-4.0.2-migration-support.patch"
 
