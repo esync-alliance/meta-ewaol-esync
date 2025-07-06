@@ -4,13 +4,11 @@
 # ******************************************************************************
 
 ###############################################################################
-# Default option
+# Default options
 ###############################################################################
-# Path to eSync Client K3S Deployment Files
-: ${DEMO_CONFIG_PATH:=@ESCLIENT_PRIV_DIR@/kubeconfigs}
-# Path to Docker config file
-: ${DOCKER_CONFIG_PATH:=@ROOT_HOME@/.docker/config.json}
-# eSync-Client Kubernetes YAML files to deploy
+: "${DEMO_CONFIG_PATH:=@ESCLIENT_PRIV_DIR@/kubeconfigs}"
+: "${DOCKER_CONFIG_PATH:=@ROOT_HOME@/.docker/config.json}"
+
 K8S_YAML_FILE_LIST="\
 esync-client-persistent-volume-claim.yaml,\
 esync-client-persistent-volume.yaml,\
@@ -20,36 +18,86 @@ esync-client-service.yaml,\
 end-node-service.yaml\
 "
 
-###############################################################################
-# eSync Client Deployment
-###############################################################################
-
 export LD_LIBRARY_PATH=/usr/lib
 export PATH=/bin:/usr/bin:/usr/sbin:/usr/local/bin:$PATH
 
-echo "eSync SOAFEE Framework Demo - Waiting for K3S Service"
-RET=1
-until [ ${RET} -eq 0 ]; do
-  kubectl get node
-  RET=$?
-  sleep 10
+###############################################################################
+# Wait for K3s readiness
+###############################################################################
+echo "eSync SOAFEE Framework Demo - Waiting for K3S Service..."
+
+TIMEOUT=300  # 5 minutes
+ELAPSED=0
+
+until kubectl get nodes --no-headers 2>/dev/null | grep -q " Ready"; do
+    if [ $ELAPSED -ge $TIMEOUT ]; then
+        echo "❌ Timeout: K3s not ready after ${TIMEOUT} seconds"
+        exit 1
+    fi
+    echo "⏳ Waiting for K3s nodes to be Ready... (${ELAPSED}s)"
+    sleep 10
+    ELAPSED=$((ELAPSED + 10))
 done
 
-echo "eSync SOAFEE Framework Demo - Deploying..."
+echo "✅ K3s is ready"
 
+###############################################################################
+# Create Docker registry secret
+###############################################################################
 if [ -f "${DOCKER_CONFIG_PATH}" ]; then
-    # Create Secret base on your docker config.json
-    kubectl create secret generic regcred \
-        --from-file=.dockerconfigjson=${DOCKER_CONFIG_PATH} \
-        --type=kubernetes.io/dockerconfigjson
+    echo "🔐 Creating/updating Docker registry secret..."
 
-    kubectl patch serviceaccount default -p \
-        "{\"imagePullSecrets\": [{\"name\": \"regcred\"}]}"
+    kubectl delete secret regcred --ignore-not-found
+
+    if kubectl create secret generic regcred \
+        --from-file=.dockerconfigjson="${DOCKER_CONFIG_PATH}" \
+        --type=kubernetes.io/dockerconfigjson; then
+
+        kubectl patch serviceaccount default \
+            -p "{\"imagePullSecrets\": [{\"name\": \"regcred\"}]}" >/dev/null 2>&1 || true
+        echo "✅ Docker registry secret configured"
+    else
+        echo "⚠️  Warning: Failed to create Docker registry secret"
+    fi
+else
+    echo "⚠️  Warning: Docker config.json not found at ${DOCKER_CONFIG_PATH}"
 fi
 
-if [ ! -z "${K8S_YAML_FILE_LIST}" ]; then
-    cd ${DEMO_CONFIG_PATH}
-    kubectl apply -f ${K8S_YAML_FILE_LIST}
+###############################################################################
+# Deploy Kubernetes workloads
+###############################################################################
+if [ -n "${K8S_YAML_FILE_LIST}" ]; then
+    if [ ! -d "${DEMO_CONFIG_PATH}" ]; then
+        echo "❌ Error: Config directory ${DEMO_CONFIG_PATH} not found"
+        exit 1
+    fi
+
+    cd "${DEMO_CONFIG_PATH}" || {
+        echo "❌ Error: Failed to cd into ${DEMO_CONFIG_PATH}"
+        exit 1
+    }
+
+    echo "🚀 Applying Kubernetes manifests..."
+    # Apply each YAML file individually to avoid kubectl argument parsing issues
+    IFS=','
+    for yaml_file in ${K8S_YAML_FILE_LIST}; do
+        yaml_file=$(echo "${yaml_file}" | xargs)  # Trim whitespace
+        echo "  Applying ${yaml_file}..."
+        if ! kubectl apply -f "${yaml_file}"; then
+            echo "❌ Error: Failed to apply ${yaml_file}"
+            exit 1
+        fi
+    done
+    unset IFS
+
+    echo "🔍 Verifying deployments readiness..."
+    if kubectl wait --for=condition=available --timeout=300s \
+        deployment/esync-client deployment/end-node >/dev/null 2>&1; then
+        echo "✅ All deployments are ready"
+    else
+        echo "⚠️  Warning: Some deployments may not be ready"
+        kubectl get deployments
+    fi
 fi
 
-echo "eSync SOAFEE Framework Demo - Deployed"
+echo "✅ eSync SOAFEE Framework Demo deployed successfully"

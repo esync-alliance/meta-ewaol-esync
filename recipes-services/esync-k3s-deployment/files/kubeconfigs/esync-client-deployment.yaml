@@ -24,6 +24,8 @@ spec:
       labels:
         io.kompose.service: esync-client
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - image: ghcr.io/esync-alliance/esync-client:latest
           name: esync-client

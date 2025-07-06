@@ -23,6 +23,8 @@ spec:
       labels:
         io.kompose.service: end-node
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - image: ghcr.io/esync-alliance/end-node:latest
           name: end-node
