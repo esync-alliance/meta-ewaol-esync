@@ -52,3 +52,10 @@ do_install () {
     install -m 0755 ${WORKDIR}/run-esync-wa.sh ${D}${bindir}/run-esync-wa.sh
 }
 SYSTEMD_SERVICE:${PN} = "esync-workload-agent.service"
+
+# Provide alternative to the C version
+PROVIDES = "esync-workload-agent-impl"
+RPROVIDES:${PN} = "esync-workload-agent-impl"
+
+# Conflict with C version to avoid running both simultaneously
+RCONFLICTS:${PN} = "esync-workload-agent-c"

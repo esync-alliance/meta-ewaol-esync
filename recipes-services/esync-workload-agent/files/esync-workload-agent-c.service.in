@@ -1,0 +1,39 @@
+[Unit]
+Description=eSync Workload Agent (C Implementation)
+After=network.target k3s.service esync-deployment-helper.service
+Wants=k3s.service esync-deployment-helper.service
+Requires=k3s.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Wait for certs to be available before starting the agent
+ExecStartPre=/bin/sh -c 'until [ -f /mnt/esync/data/certs/python-agent/private.pem ] && [ -f /mnt/esync/data/certs/ca/ca.pem ] && [ -f /mnt/esync/data/certs/python-agent/cert.pem ]; do echo "[esync-wa-c] Waiting for certs..."; sleep 2; done'
+ExecStart=@BINDIR@/workloadagent \
+    -k @ESYNC_CERTS_DIR@ \
+    -c @ESYNC_CACHE_DIR@ \
+    -b @ESYNC_BACKUP_DIR@ \
+    -t @ESYNC_HANDLER_TYPE@ \
+    -i @ESYNC_HOST@ \
+    -p @ESYNC_PORT@ \
+    -u @SSH_USER@ \
+    -s @SSH_PORT@ \
+    -W @WA_INSTALL_DIR@ \
+    -m @WA_TIMEOUT@ \
+    -r @WA_RETRIES@ \
+    -d 1 \
+    -D \
+    @ESYNC_EXTRA_ARGS@
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=esync-workload-agent-c
+
+# Security settings removed for development/testing
+# Can be re-enabled later once functionality is stable
+
+[Install]
+WantedBy=multi-user.target
