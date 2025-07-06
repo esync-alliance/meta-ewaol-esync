@@ -13,7 +13,8 @@
 
 export LD_LIBRARY_PATH=/usr/lib
 export PATH=/bin:/usr/bin:/usr/sbin:$PATH
-macaddr=$(getdevid.sh)
+# Use the MAC address version from tools directory for consistency
+macaddr=$(${TOOLS_DIR}/getdevid.sh)
 
 INIT_FLAG=1
 while true; do

@@ -1,37 +1,50 @@
-#!/bin/bash -e
-# ******************************************************************************
-# * FILE PURPOSE: Get Device's ID (MAC Address)
-# ******************************************************************************
-# * FILE NAME: getdevid.sh
-# *
-# * DESCRIPTION:
-# *  Returns Device's MAC address for the purpose of using it as Device ID
-# *  for eSync Client Provisioing
-# *
-# * USAGE:
-# *  ./getdevid.sh
-# *
-# * Copyright (C) 2022 Excelfore Corporation. All Rights Reserved.
-# *
-# * Unauthorized copying of this file, via any medium is strictly prohibited.
-# * Proprietary and confidential.
-# * Its use or disclosure, in whole or in part, without written permission of
-# * Excelfore Corp. is prohibited.
-# ******************************************************************************
-export PATH=$PATH:/sbin:/bin:/usr/sbin:/usr/bin
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
-NETDEV=""
-if [ -z ${NETDEV} ];then
-    DEFAULT_IFACE=$(ip -4 route show default | awk 'match($0,/dev [^ ]*/){ print substr($0, RSTART+4,RLENGTH-4)}')
-else
-	DEFAULT_IFACE=${NETDEV}
-fi
+# Validate and read machine-id
+get_machine_id() {
+  local idfile=""
+  if [[ -r /etc/machine-id ]]; then
+    idfile="/etc/machine-id"
+  elif [[ -r /var/lib/dbus/machine-id ]]; then
+    idfile="/var/lib/dbus/machine-id"
+  else
+    echo "Error: machine-id file not found." >&2
+    return 1
+  fi
 
-#if multiple interface came, select the first one as priority
-IFACE=$(echo $DEFAULT_IFACE | cut -d ' ' -f 1 )
+  local rawid
+  rawid="$(grep -m1 -E '.+' "$idfile" 2>/dev/null || true)"
+  if [[ -z "$rawid" ]]; then
+    echo "Error: machine-id is empty." >&2
+    return 1
+  fi
 
-if [ ! -z $IFACE ] || [ -d /sys/class/net/$IFACE ] || [ -f /sys/class/net/$IFACE/address ];then
-    read MAC </sys/class/net/$IFACE/address #reading mac address
-    DEVID=${MAC//:} #removing colon
-fi
-echo $DEVID
+  if [[ "$rawid" =~ ^[a-fA-F0-9]{32}$ || "$rawid" =~ ^[a-fA-F0-9]{8}-([a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}$ ]]; then
+    printf '%s' "$rawid"
+  else
+    echo "Error: Invalid machine-id format: $rawid" >&2
+    return 1
+  fi
+}
+
+# Hash and extract HWID
+generate_hwid() {
+  local rawid
+  rawid="$(get_machine_id)" || return 1
+
+  if command -v sha256sum &>/dev/null; then
+    echo -n "$rawid" | sha256sum | awk '{print substr($1,1,12)}'
+  elif command -v md5sum &>/dev/null; then
+    echo -n "$rawid" | md5sum | awk '{print substr($1,1,12)}'
+  elif command -v openssl &>/dev/null; then
+    echo -n "$rawid" | openssl dgst -sha256 | awk '{print substr($NF,1,12)}'
+  else
+    echo "Error: No hashing tool available (sha256sum/md5sum/openssl)." >&2
+    return 1
+  fi
+}
+
+# Main execution
+generate_hwid
