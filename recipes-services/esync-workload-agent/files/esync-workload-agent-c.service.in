@@ -23,7 +23,6 @@ ExecStart=@BINDIR@/workloadagent \
     -W @WA_INSTALL_DIR@ \
     -m @WA_TIMEOUT@ \
     -r @WA_RETRIES@ \
-    -d 1 \
     -D \
     @ESYNC_EXTRA_ARGS@
 Restart=on-failure

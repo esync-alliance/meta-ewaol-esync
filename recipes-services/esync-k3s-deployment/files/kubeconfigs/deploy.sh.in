@@ -22,18 +22,83 @@ export LD_LIBRARY_PATH=/usr/lib
 export PATH=/bin:/usr/bin:/usr/sbin:/usr/local/bin:$PATH
 
 ###############################################################################
-# Wait for K3s readiness
+# Validate time synchronization
 ###############################################################################
-echo "eSync SOAFEE Framework Demo - Waiting for K3S Service..."
+echo "🕐 Validating time synchronization..."
+
+# Check if time is synchronized
+if systemctl is-active --quiet systemd-timesyncd; then
+    # Get time sync status
+    if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q "yes"; then
+        echo "✅ Time is synchronized"
+    else
+        echo "⏳ Waiting for time synchronization..."
+        # Wait up to 60 seconds for time sync
+        for i in $(seq 1 12); do
+            if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q "yes"; then
+                echo "✅ Time synchronized after ${i}0 seconds"
+                break
+            fi
+            sleep 5
+        done
+        
+        # Final check
+        if ! timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q "yes"; then
+            echo "⚠️  Warning: Time may not be synchronized"
+        fi
+    fi
+else
+    echo "⚠️  Warning: systemd-timesyncd is not active"
+fi
+
+###############################################################################
+# Ensure K3s service is running and handle certificate issues
+###############################################################################
+echo "eSync SOAFEE Framework Demo - Ensuring K3S Service is ready..."
+
+# Ensure k3s service is properly started (restart if stuck)
+if systemctl is-active --quiet k3s; then
+    echo "✅ k3s service is running"
+else
+    echo "🔄 k3s service not active, checking status..."
+    # If k3s is stuck in activating state, restart it
+    if systemctl status k3s | grep -q "activating"; then
+        echo "🔄 k3s stuck in activating state, restarting..."
+        systemctl restart k3s
+    else
+        echo "🔄 Starting k3s service..."
+        systemctl start k3s
+    fi
+    sleep 15
+fi
 
 TIMEOUT=300  # 5 minutes
 ELAPSED=0
+K3S_RESTART_ATTEMPTS=0
+MAX_K3S_RESTARTS=2
 
 until kubectl get nodes --no-headers 2>/dev/null | grep -q " Ready"; do
     if [ $ELAPSED -ge $TIMEOUT ]; then
         echo "❌ Timeout: K3s not ready after ${TIMEOUT} seconds"
         exit 1
     fi
+    
+    # Check for certificate errors and restart k3s if needed
+    if kubectl get nodes 2>&1 | grep -q "certificate has expired\|not yet valid"; then
+        if [ $K3S_RESTART_ATTEMPTS -lt $MAX_K3S_RESTARTS ]; then
+            K3S_RESTART_ATTEMPTS=$((K3S_RESTART_ATTEMPTS + 1))
+            echo "⚠️  Certificate timing issue detected (attempt $K3S_RESTART_ATTEMPTS/$MAX_K3S_RESTARTS). Restarting k3s..."
+            systemctl restart k3s
+            echo "⏳ Waiting for k3s to restart with fresh certificates..."
+            sleep 30
+            ELAPSED=$((ELAPSED + 30))
+            continue
+        else
+            echo "❌ Certificate issue persists after $MAX_K3S_RESTARTS restart attempts"
+            exit 2
+        fi
+    fi
+    
     echo "⏳ Waiting for K3s nodes to be Ready... (${ELAPSED}s)"
     sleep 10
     ELAPSED=$((ELAPSED + 10))
@@ -101,3 +166,11 @@ if [ -n "${K8S_YAML_FILE_LIST}" ]; then
 fi
 
 echo "✅ eSync SOAFEE Framework Demo deployed successfully"
+
+# Create completion marker only if deployments actually exist
+if kubectl get deployments esync-client end-node >/dev/null 2>&1; then
+    touch /var/lib/esync-deployment-complete
+    echo "✅ Deployment completion marker created"
+else
+    echo "⚠️  Warning: Deployments not found, completion marker not created"
+fi
